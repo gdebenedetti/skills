@@ -1,4 +1,4 @@
-# AGENTS.md instructions for /Users/guidodebenedetti/github/skills
+# AGENTS.md instructions for this repository
 
 - This repo is a generic catalog of Agent Skills.
 - Keep skills in `skills/<skill-name>/`.
