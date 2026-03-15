@@ -1,0 +1,40 @@
+name: New skill proposal
+description: Propose a new Agent Skill for the catalog.
+title: "[Skill]: "
+body:
+  - type: input
+    id: skill_name
+    attributes:
+      label: Proposed skill name
+      description: Use lowercase hyphen-case if you already have a name in mind.
+      placeholder: example-skill
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What repeated task or workflow should this skill cover?
+    validations:
+      required: true
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Expected triggers
+      description: What kinds of prompts or requests should activate this skill?
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow outline
+      description: Describe the core steps and any reusable scripts, references, or assets.
+    validations:
+      required: true
+  - type: checkboxes
+    id: review
+    attributes:
+      label: Review checklist
+      options:
+        - label: I checked whether an existing skill already covers this use case.
+        - label: I can review the final skill against Anthropic `skill-creator`.

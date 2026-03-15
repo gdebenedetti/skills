@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commit Practices"
+  short_description: "Keep commits small and concrete"
+  default_prompt: "Use $commit-practices to split these changes into atomic commits."

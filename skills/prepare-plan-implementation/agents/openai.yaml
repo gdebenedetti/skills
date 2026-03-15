@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Plan Implementation"
+  short_description: "Plan execution with branch/worktree checks"
+  default_prompt: "Use $prepare-plan-implementation to review this plan for isolation strategy, staged execution, and verification."

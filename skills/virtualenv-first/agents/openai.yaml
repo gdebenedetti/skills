@@ -1,0 +1,4 @@
+interface:
+  display_name: "Virtualenv First"
+  short_description: "Use project envs before global Python"
+  default_prompt: "Use $virtualenv-first to run this Python task inside the project virtual environment."
