@@ -22,7 +22,11 @@ python scripts/validate_skills.py
 
 ### 2. Anthropic `skill-creator` review
 
-Review the skill against the `skill-creator` workflow and confirm all of the following:
+Use Anthropic `skill-creator` as the official review guide for authoring quality.
+
+This is not a separate validator skill. It is a skill-creation and improvement workflow that includes `quick_validate.py` plus authoring guidance.
+
+Review the skill against that guidance and confirm all of the following:
 
 - The skill name is short, clear, and correctly hyphen-cased.
 - The frontmatter `name` and `description` are good triggers for invocation.
