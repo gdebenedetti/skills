@@ -34,18 +34,15 @@ Agents benefit from concise tool descriptions and the ability to filter/paginate
 **Actionable Error Messages:**
 Error messages should guide agents toward solutions with specific suggestions and next steps.
 
-#### 1.2 Study MCP Protocol Documentation
+#### 1.2 Study MCP Protocol Fundamentals
 
-**Navigate the MCP specification:**
+Load [📘 MCP Protocol Summary](./references/mcp_protocol.md) first.
 
-Start with the sitemap to find relevant pages: `https://modelcontextprotocol.io/sitemap.xml`
-
-Then fetch specific pages with `.md` suffix for markdown format (e.g., `https://modelcontextprotocol.io/specification/draft.md`).
-
-Key pages to review:
-- Specification overview and architecture
-- Transport mechanisms (streamable HTTP, stdio)
-- Tool, resource, and prompt definitions
+Focus on:
+- Architecture and lifecycle
+- Tool, resource, and prompt semantics
+- Transport choice (`streamable-http` vs `stdio`)
+- Capability negotiation and context boundaries
 
 #### 1.3 Study Framework Documentation
 
@@ -53,25 +50,32 @@ Key pages to review:
 - **Language**: TypeScript (high-quality SDK support and good compatibility in many execution environments e.g. MCPB. Plus AI models are good at generating TypeScript code, benefiting from its broad usage, static typing and good linting tools)
 - **Transport**: Streamable HTTP for remote servers, using stateless JSON (simpler to scale and maintain, as opposed to stateful sessions and streaming responses). stdio for local servers.
 
-**Load framework documentation:**
+**Load bundled references first:**
 
 - **MCP Best Practices**: [📋 View Best Practices](./references/mcp_best_practices.md) - Core guidelines
 
 **For TypeScript (recommended):**
-- **TypeScript SDK**: Use WebFetch to load `https://raw.githubusercontent.com/modelcontextprotocol/typescript-sdk/main/README.md`
+- **TypeScript SDK Summary**: [🧭 TypeScript SDK Summary](./references/typescript_sdk.md)
 - [⚡ TypeScript Guide](./references/node_mcp_server.md) - TypeScript patterns and examples
 
 **For Python:**
-- **Python SDK**: Use WebFetch to load `https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md`
+- **Python SDK Summary**: [🧭 Python SDK Summary](./references/python_sdk.md)
 - [🐍 Python Guide](./references/python_mcp_server.md) - Python patterns and examples
 
 #### 1.4 Plan Your Implementation
 
 **Understand the API:**
-Review the service's API documentation to identify key endpoints, authentication requirements, and data models. Use web search and WebFetch as needed.
+Review the target service's API contract from the workspace or from user-provided materials. Prefer OpenAPI specs, official SDK types, existing client code, and sample requests over prose summaries.
+
+If the canonical API contract is missing, stop and ask for it before implementing authentication, write operations, or pagination behavior.
 
 **Tool Selection:**
 Prioritize comprehensive API coverage. List endpoints to implement, starting with the most common operations.
+
+**Source Hygiene:**
+- Prefer bundled references in this skill and API materials already present in the workspace
+- Treat repo-local references as the default design baseline
+- Do not guess behavior from incomplete examples or undocumented endpoints
 
 ---
 
@@ -200,7 +204,7 @@ Create an XML file with this structure:
 Load these resources as needed during development:
 
 ### Core MCP Documentation (Load First)
-- **MCP Protocol**: Start with sitemap at `https://modelcontextprotocol.io/sitemap.xml`, then fetch specific pages with `.md` suffix
+- [📘 MCP Protocol Summary](./references/mcp_protocol.md) - Architecture, lifecycle, transports, and primitives
 - [📋 MCP Best Practices](./references/mcp_best_practices.md) - Universal MCP guidelines including:
   - Server and tool naming conventions
   - Response format guidelines (JSON vs Markdown)
@@ -209,8 +213,8 @@ Load these resources as needed during development:
   - Security and error handling standards
 
 ### SDK Documentation (Load During Phase 1/2)
-- **Python SDK**: Fetch from `https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/main/README.md`
-- **TypeScript SDK**: Fetch from `https://raw.githubusercontent.com/modelcontextprotocol/typescript-sdk/main/README.md`
+- [🧭 Python SDK Summary](./references/python_sdk.md) - High-level API patterns, structured output, transport choices
+- [🧭 TypeScript SDK Summary](./references/typescript_sdk.md) - Stable vs preview guidance, server patterns, transport choices
 
 ### Language-Specific Implementation Guides (Load During Phase 2)
 - [🐍 Python Implementation Guide](./references/python_mcp_server.md) - Complete Python/FastMCP guide with:
