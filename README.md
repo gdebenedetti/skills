@@ -37,22 +37,22 @@ Only `SKILL.md` is required. The other folders are optional.
 Use this repository directly with `skills.sh`:
 
 ```bash
-npx skills add gdebenedetti/skills --list
+npx skills add . --list
 ```
 
 Install one specific skill:
 
 ```bash
-npx skills add gdebenedetti/skills --skill commit-practices
-npx skills add gdebenedetti/skills --skill mcp-builder
-npx skills add gdebenedetti/skills --skill prepare-plan-implementation
-npx skills add gdebenedetti/skills --skill virtualenv-first
+npx skills add . --skill commit-practices
+npx skills add . --skill mcp-builder
+npx skills add . --skill prepare-plan-implementation
+npx skills add . --skill virtualenv-first
 ```
 
 Install the whole catalog:
 
 ```bash
-npx skills add gdebenedetti/skills --skill '*' --yes
+npx skills add . --skill '*' --yes
 ```
 
 ## Contributing
