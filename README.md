@@ -34,17 +34,25 @@ Only `SKILL.md` is required. The other folders are optional.
 
 ## Use With skills.sh
 
-If you use the open Agent Skills tooling, you can add a skill from this repository with:
+Use this repository directly with `skills.sh`:
 
 ```bash
-npx skills add <owner>/<repo> --skill <skill-name>
+npx skills add gdebenedetti/skills --list
 ```
 
-Examples:
+Install one specific skill:
 
 ```bash
-npx skills add <owner>/<repo> --skill commit-practices
-npx skills add <owner>/<repo> --skill mcp-builder
+npx skills add gdebenedetti/skills --skill commit-practices
+npx skills add gdebenedetti/skills --skill mcp-builder
+npx skills add gdebenedetti/skills --skill prepare-plan-implementation
+npx skills add gdebenedetti/skills --skill virtualenv-first
+```
+
+Install the whole catalog:
+
+```bash
+npx skills add gdebenedetti/skills --skill '*' --yes
 ```
 
 ## Contributing
@@ -54,7 +62,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 Every new or changed skill must pass both checks:
 
 1. `python scripts/validate_skills.py`
-2. Manual review against Anthropic `skill-creator`
+2. Editorial review guided by Anthropic `skill-creator`
 
 ## Licensing
 
