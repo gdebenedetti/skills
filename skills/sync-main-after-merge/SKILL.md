@@ -17,12 +17,14 @@ Use this skill for merge-completion tasks on the default branch.
 4. If the request includes the merge itself, merge the topic branch or worktree branch into the default branch first.
    - Switch to the default branch first, then merge the branch the user named or the branch currently associated with the worktree.
    - Prefer fast-forward or the repo's documented merge policy.
+   - If the default branch is protected, do not push directly; route the merge through a pull request, then continue after the PR lands.
 5. Switch to the default branch locally.
    - `git switch <default-branch>`
    - If `git switch` fails because the branch is already checked out in another worktree, stop and resolve that worktree instead of forcing a duplicate checkout.
 6. Sync the local default branch with remote.
    - Use `git pull --ff-only` for the normal case.
    - If the user explicitly wants the local branch to match `origin/<default-branch>` exactly, confirm that dropping any local commits is acceptable and the worktree is clean, then use `git reset --hard origin/<default-branch>` after fetching.
+   - After a protected-branch PR merges, fetch again before pulling so the local branch sees the new remote commit.
 7. Verify the result.
    - `git status --short --branch`
    - Confirm the local branch and `origin/<default-branch>` point to the expected commit.

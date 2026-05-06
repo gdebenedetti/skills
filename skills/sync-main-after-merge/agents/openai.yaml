@@ -1,4 +1,4 @@
 interface:
   display_name: "Sync Main After Merge"
   short_description: "Merge into main/master and resync the default branch"
-  default_prompt: "Use $sync-main-after-merge to merge the topic branch into the default branch and bring local main/master back in sync with origin."
+  default_prompt: "Use $sync-main-after-merge to merge the topic branch into the default branch, route protected branches through a PR when needed, and bring local main/master back in sync with origin."
