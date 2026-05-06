@@ -15,13 +15,13 @@ Use this skill for merge-completion tasks on the default branch.
 3. Fetch and prune remote refs.
    - `git fetch origin --prune`
 4. If the request includes the merge itself, merge the topic branch or worktree branch into the default branch first.
-   - Use the branch the user named, or the branch currently associated with the worktree.
+   - Switch to the default branch first, then merge the branch the user named or the branch currently associated with the worktree.
    - Prefer fast-forward or the repo's documented merge policy.
 5. Switch to the default branch locally.
    - `git switch <default-branch>`
 6. Sync the local default branch with remote.
    - Use `git pull --ff-only` for the normal case.
-   - If the user explicitly wants the local branch to match `origin/<default-branch>` exactly and the worktree is clean, use `git reset --hard origin/<default-branch>` after fetching.
+   - If the user explicitly wants the local branch to match `origin/<default-branch>` exactly, confirm that dropping any local commits is acceptable and the worktree is clean, then use `git reset --hard origin/<default-branch>` after fetching.
 7. Verify the result.
    - `git status --short --branch`
    - Confirm the local branch and `origin/<default-branch>` point to the expected commit.
