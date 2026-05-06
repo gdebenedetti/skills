@@ -13,6 +13,7 @@ Current skills:
 - `commit-practices`
 - `mcp-builder`
 - `prepare-plan-implementation`
+- `sync-main-after-merge`
 - `virtualenv-first`
 
 ## Layout
@@ -46,6 +47,7 @@ Install one specific skill:
 npx skills add gdebenedetti/skills --skill commit-practices
 npx skills add gdebenedetti/skills --skill mcp-builder
 npx skills add gdebenedetti/skills --skill prepare-plan-implementation
+npx skills add gdebenedetti/skills --skill sync-main-after-merge
 npx skills add gdebenedetti/skills --skill virtualenv-first
 ```
 
@@ -60,6 +62,7 @@ If you already cloned the repository locally, the same commands also work with t
 ```bash
 npx skills add . --list
 npx skills add . --skill commit-practices
+npx skills add . --skill sync-main-after-merge
 ```
 
 ## Contributing
