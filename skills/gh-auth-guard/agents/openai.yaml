@@ -1,0 +1,4 @@
+interface:
+  display_name: "GH Auth Guard"
+  short_description: "Rehidrata auth de gh local"
+  default_prompt: "Use $gh-auth-guard to verify GitHub CLI auth before running gh commands."
