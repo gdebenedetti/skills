@@ -55,6 +55,8 @@ def validate_skill(skill_path: str) -> tuple[bool, str]:
         return False, f"Name '{name}' cannot start/end with hyphen or contain consecutive hyphens"
     if len(name) > MAX_SKILL_NAME_LENGTH:
         return False, f"Name is too long ({len(name)} > {MAX_SKILL_NAME_LENGTH})"
+    if name != skill_dir.name:
+        return False, f"Name '{name}' must match directory '{skill_dir.name}'"
 
     description = frontmatter["description"]
     if not isinstance(description, str):

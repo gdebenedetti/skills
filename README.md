@@ -15,6 +15,7 @@ Current skills:
 - `prepare-plan-implementation`
 - `sync-main-after-merge`
 - `virtualenv-first`
+- `xquik-x-data`
 
 ## Layout
 
@@ -49,6 +50,7 @@ npx skills add gdebenedetti/skills --skill mcp-builder
 npx skills add gdebenedetti/skills --skill prepare-plan-implementation
 npx skills add gdebenedetti/skills --skill sync-main-after-merge
 npx skills add gdebenedetti/skills --skill virtualenv-first
+npx skills add gdebenedetti/skills --skill xquik-x-data
 ```
 
 Install the whole catalog:
