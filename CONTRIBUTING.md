@@ -18,6 +18,7 @@ Run:
 
 ```bash
 python scripts/validate_skills.py
+python -m unittest discover -s scripts -p "test_*.py"
 ```
 
 ### 2. Anthropic `skill-creator` review
