@@ -13,6 +13,7 @@ Current skills:
 - `commit-practices`
 - `mcp-builder`
 - `prepare-plan-implementation`
+- `opencode-share-reader`
 - `sync-main-after-merge`
 - `virtualenv-first`
 
@@ -47,6 +48,7 @@ Install one specific skill:
 npx skills add gdebenedetti/skills --skill commit-practices
 npx skills add gdebenedetti/skills --skill mcp-builder
 npx skills add gdebenedetti/skills --skill prepare-plan-implementation
+npx skills add gdebenedetti/skills --skill opencode-share-reader
 npx skills add gdebenedetti/skills --skill sync-main-after-merge
 npx skills add gdebenedetti/skills --skill virtualenv-first
 ```
