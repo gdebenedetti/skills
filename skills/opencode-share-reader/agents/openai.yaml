@@ -1,0 +1,7 @@
+interface:
+  display_name: "OpenCode Share Reader"
+  short_description: "Interpreta sesiones compartidas de OpenCode"
+  default_prompt: "Usá $opencode-share-reader para convertir este enlace compartido de OpenCode en evidencia estructurada para revisión."
+
+policy:
+  allow_implicit_invocation: true
