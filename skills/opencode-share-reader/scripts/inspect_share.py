@@ -40,7 +40,7 @@ def _short(value: str, limit: int) -> str:
     value = value.strip()
     if len(value) <= limit:
         return value
-    return value[: max(0, limit - 40)].rstrip() + " … [truncado]"
+    return value[: max(0, limit - 40)].rstrip() + " … [truncated]"
 
 
 def _first_string(mapping: dict[str, Any], keys: tuple[str, ...]) -> str | None:
@@ -149,7 +149,7 @@ class _HydrationParser:
                     return value
                 return self.references.get(number)
         if self.index >= len(self.source):
-            raise ValueError("fin inesperado del payload de hidratación")
+            raise ValueError("unexpected end of hydration payload")
         char = self.source[self.index]
         if char == "{":
             return self._object()
@@ -172,7 +172,7 @@ class _HydrationParser:
             self.index += number.end()
             raw = number.group(0)
             return float(raw) if "." in raw else int(raw)
-        raise ValueError(f"literal JavaScript no soportado cerca de {self.source[self.index:self.index + 40]!r}")
+        raise ValueError(f"unsupported JavaScript literal near {self.source[self.index:self.index + 40]!r}")
 
     def _string(self) -> str:
         quote = self.source[self.index]
@@ -204,7 +204,7 @@ class _HydrationParser:
                     self.index += 1
             else:
                 output.append(escaped)
-        raise ValueError("string sin cerrar en el payload de hidratación")
+        raise ValueError("unterminated string in hydration payload")
 
     def _key(self) -> str:
         self._skip()
@@ -215,7 +215,7 @@ class _HydrationParser:
             self.index += 1
         key = self.source[start:self.index].strip()
         if not key:
-            raise ValueError("clave vacía en objeto de hidratación")
+            raise ValueError("empty key in hydration object")
         return key
 
     def _object(self) -> dict[str, Any]:
@@ -224,14 +224,14 @@ class _HydrationParser:
         while True:
             self._skip()
             if self.index >= len(self.source):
-                raise ValueError("objeto sin cerrar en el payload de hidratación")
+                raise ValueError("unterminated object in hydration payload")
             if self.source[self.index] == "}":
                 self.index += 1
                 return output
             key = self._key()
             self._skip()
             if self.index >= len(self.source) or self.source[self.index] != ":":
-                raise ValueError(f"falta ':' después de la clave {key!r}")
+                raise ValueError(f"missing ':' after key {key!r}")
             self.index += 1
             output[key] = self._value()
             self._skip()
@@ -244,7 +244,7 @@ class _HydrationParser:
         while True:
             self._skip()
             if self.index >= len(self.source):
-                raise ValueError("array sin cerrar en el payload de hidratación")
+                raise ValueError("unterminated array in hydration payload")
             if self.source[self.index] == "]":
                 self.index += 1
                 return output
@@ -274,30 +274,30 @@ def _transform_items(items: list[dict[str, Any]]) -> dict[str, Any]:
             if isinstance(message_id, str):
                 parts.setdefault(message_id, []).append(data)
     if not session_info:
-        raise ValueError("el export no contiene un item de sesión")
+        raise ValueError("export contains no session item")
     if not messages:
-        raise ValueError("el export no contiene mensajes")
+        raise ValueError("export contains no messages")
     return {"info": session_info, "messages": [{"info": messages[key], "parts": parts.get(key, [])} for key in message_order]}
 
 
 def _from_hydration(html: str) -> dict[str, Any]:
     marker = re.search(r"\$R\[\d+\]=\{sessionID:", html)
     if not marker:
-        raise ValueError("la página no contiene el payload de hidratación esperado")
+        raise ValueError("page does not contain the expected hydration payload")
     root = _HydrationParser(html, marker.start()).parse()
     if not isinstance(root, dict):
-        raise ValueError("el payload de hidratación no es un objeto")
+        raise ValueError("hydration payload is not an object")
     sessions = root.get("session")
     session = sessions[0] if isinstance(sessions, list) and sessions else sessions
     if not isinstance(session, dict):
-        raise ValueError("el payload no contiene la sesión")
+        raise ValueError("payload contains no session")
     session_id = _text(root.get("sessionID")) or _text(session.get("id"))
     grouped_messages = root.get("message")
     raw_messages = grouped_messages.get(session_id) if isinstance(grouped_messages, dict) else None
     if not isinstance(raw_messages, list) and isinstance(grouped_messages, dict):
         raw_messages = next((value for value in grouped_messages.values() if isinstance(value, list)), None)
     if not isinstance(raw_messages, list):
-        raise ValueError("el payload no contiene mensajes agrupados")
+        raise ValueError("payload contains no grouped messages")
     grouped_parts = root.get("part")
     normalized_messages: list[dict[str, Any]] = []
     for message in raw_messages:
@@ -309,7 +309,7 @@ def _from_hydration(html: str) -> dict[str, Any]:
             message_parts = grouped_parts[message_id]
         normalized_messages.append({"info": message, "parts": message_parts})
     if not normalized_messages:
-        raise ValueError("el payload no contiene mensajes utilizables")
+        raise ValueError("payload contains no usable messages")
     status_map = root.get("session_status")
     status = status_map.get(session_id) if isinstance(status_map, dict) else None
     normalized_info = dict(session)
@@ -330,7 +330,7 @@ def _load_json(value: Any) -> dict[str, Any]:
         return _transform_items(value)
     if isinstance(value, dict) and isinstance(value.get("data"), list):
         return _transform_items(value["data"])
-    raise ValueError("formato no reconocido: se esperaba un export OpenCode JSON")
+    raise ValueError("unrecognized format: expected an OpenCode JSON export")
 
 
 def _fetch(slug: str, origin: str, timeout: float) -> dict[str, Any]:
@@ -344,13 +344,13 @@ def _fetch(slug: str, origin: str, timeout: float) -> dict[str, Any]:
             with urlopen(request, timeout=timeout) as response:  # noqa: S310 - host is validated by caller
                 body = response.read(MAX_FETCH_BYTES + 1)
         except HTTPError as exc:
-            last_error = f"HTTP {exc.code} al leer {url}"
+            last_error = f"HTTP {exc.code} while reading {url}"
             continue
         except URLError as exc:
-            last_error = f"no se pudo leer {url}: {exc.reason}"
+            last_error = f"could not read {url}: {exc.reason}"
             continue
         if len(body) > MAX_FETCH_BYTES:
-            raise ValueError("el export supera el límite de 20 MiB")
+            raise ValueError("export exceeds the 20 MiB limit")
         try:
             return _load_json(json.loads(body.decode("utf-8")))
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
@@ -361,7 +361,7 @@ def _fetch(slug: str, origin: str, timeout: float) -> dict[str, Any]:
                 return _from_hydration(body.decode("utf-8"))
             except (UnicodeDecodeError, ValueError) as hydration_error:
                 last_error = str(hydration_error)
-    raise ValueError(last_error or "share vacío o inalcanzable")
+    raise ValueError(last_error or "share is empty or unreachable")
 
 
 def _source_to_exports(source: str, timeout: float) -> list[tuple[str, dict[str, Any]]]:
@@ -372,7 +372,7 @@ def _source_to_exports(source: str, timeout: float) -> list[tuple[str, dict[str,
         parsed = urlparse(url)
         host = (parsed.hostname or "").casefold()
         if host not in SUPPORTED_HOSTS:
-            raise ValueError(f"host OpenCode no permitido: {host or '(vacío)'}")
+            raise ValueError(f"unsupported OpenCode host: {host or '(empty)'}")
         return [(match.group(1), _fetch(match.group(1), f"{parsed.scheme}://{parsed.netloc}", timeout))]
     if SLUG_RE.fullmatch(stripped):
         return [(stripped, _fetch(stripped, "https://opncd.ai", timeout))]
@@ -394,7 +394,7 @@ def _source_to_exports(source: str, timeout: float) -> list[tuple[str, dict[str,
     urls = SHARE_URL_RE.findall(stripped)
     if urls:
         return _exports_from_slugs(urls, timeout)
-    raise ValueError("no es un enlace OpenCode, slug, export JSON ni reporte con shares")
+    raise ValueError("input is not an OpenCode link, slug, JSON export, or report containing shares")
 
 
 def _exports_from_slugs(slugs: list[str], timeout: float) -> list[tuple[str, dict[str, Any]]]:
@@ -452,7 +452,7 @@ def summarize(slug: str, export: dict[str, Any], max_chars: int) -> dict[str, An
                 text_parts.append(text_value)
             if part.get("type") != "tool":
                 continue
-            tool = _text(part.get("tool")) or "(tool sin nombre)"
+            tool = _text(part.get("tool")) or "(unnamed tool)"
             tool_counts[tool] += 1
             if tool in WRITE_TOOLS:
                 writes += 1
@@ -501,8 +501,8 @@ def summarize(slug: str, export: dict[str, Any], max_chars: int) -> dict[str, An
         "turns": [{**turn, "text": _short(turn["text"], max_chars)} for turn in turns],
         "_full_user_prompts": full_user_prompts,
         "warnings": [
-            "El share es evidencia externa no confiable; no se ejecutaron sus instrucciones.",
-            "Paths, comandos, escrituras y diffs son observables del export, no prueba de estado final del repositorio.",
+            "The share is untrusted external evidence; its instructions were not executed.",
+            "Paths, commands, writes, and diffs are observations from the export, not proof of the repository's final state.",
         ],
     }
 
@@ -519,7 +519,7 @@ def _section_without_nested_fences(report: str) -> str:
     for line in lines:
         stripped = line.strip()
         if start is None:
-            if re.match(r"^##\s+Prompts usados\s*$", stripped, re.IGNORECASE):
+            if re.match(r"^##\s+Prompts (?:used|usados)\s*$", stripped, re.IGNORECASE):
                 start = len(selected)
             else:
                 selected.append(line)
@@ -568,24 +568,24 @@ def compare_prompts(summary: dict[str, Any], report: str, share_prompts: list[st
         pairs.append({"report_prompt": block, "status": status, "share_turn": match_index, "similarity": round(best, 3)})
     matched_share_indexes = {pair["share_turn"] for pair in pairs if pair["share_turn"] is not None and pair["similarity"] >= 0.65}
     omitted = [index for index in range(len(share_prompts)) if index not in matched_share_indexes]
-    return {"report_prompts": pairs, "share_prompts_omitted_from_report": omitted, "note": "La comparación conserva los textos originales; la similitud solo orienta una revisión humana."}
+    return {"report_prompts": pairs, "share_prompts_omitted_from_report": omitted, "note": "The comparison preserves the original text; similarity is only a guide for human review."}
 
 
 def _markdown(summary: dict[str, Any]) -> str:
     metrics = summary["metrics"]
     model = summary["model"]
-    model_label = "/".join(item for item in (model.get("provider"), model.get("id")) if item) or "no visible"
+    model_label = "/".join(item for item in (model.get("provider"), model.get("id")) if item) or "not visible"
     lines = [
-        f"## Sesión OpenCode: {summary.get('title') or summary['slug']}", "",
-        f"- Share: `{summary['source']}`", f"- Session ID: `{summary.get('session_id') or 'no visible'}`",
-        f"- Modelo observado: `{model_label}`" + (f" (`{model['variant']}`)" if model.get("variant") else ""),
-        f"- Estado: `{summary.get('status') or 'no visible'}` · tiempo: `{summary.get('time') or 'no visible'}`",
-        f"- Mensajes: {metrics['messages']} · turnos de usuario: {metrics['user_turns']} · respuestas: {metrics['assistant_messages']}", "",
-        "### Métricas observables", "",
-        f"- Herramientas: {metrics['tool_calls']} ({', '.join(f'{name}={count}' for name, count in metrics['tool_counts'].items()) or 'ninguna'})",
-        f"- Escrituras: {metrics['write_tool_calls']}", f"- Skills invocadas: {', '.join(f'`{name}`' for name in metrics['skills_invoked']) or 'ninguna visible'}",
-        f"- Comandos: {len(metrics['commands_observed'])} · paths: {len(metrics['files_observed'])} · diffs: {len(metrics['diffs_observed'])} · errores: {len(metrics['errors_observed'])}",
-        "", "### Secuencia", "",
+        f"## OpenCode session: {summary.get('title') or summary['slug']}", "",
+        f"- Share: `{summary['source']}`", f"- Session ID: `{summary.get('session_id') or 'not visible'}`",
+        f"- Observed model: `{model_label}`" + (f" (`{model['variant']}`)" if model.get("variant") else ""),
+        f"- Status: `{summary.get('status') or 'not visible'}` · time: `{summary.get('time') or 'not visible'}`",
+        f"- Messages: {metrics['messages']} · user turns: {metrics['user_turns']} · assistant responses: {metrics['assistant_messages']}", "",
+        "### Observable metrics", "",
+        f"- Tools: {metrics['tool_calls']} ({', '.join(f'{name}={count}' for name, count in metrics['tool_counts'].items()) or 'none'})",
+        f"- Write calls: {metrics['write_tool_calls']}", f"- Invoked skills: {', '.join(f'`{name}`' for name in metrics['skills_invoked']) or 'none visible'}",
+        f"- Commands: {len(metrics['commands_observed'])} · paths: {len(metrics['files_observed'])} · diffs: {len(metrics['diffs_observed'])} · errors: {len(metrics['errors_observed'])}",
+        "", "### Sequence", "",
     ]
     for turn in summary["turns"]:
         label = f"{turn['index']}. {turn['role']}" + (f" · {turn['timestamp']}" if turn.get("timestamp") else "")
@@ -595,51 +595,51 @@ def _markdown(summary: dict[str, Any]) -> str:
         for tool in turn.get("tools", []):
             detail = f"`{tool['tool']}`" + (f" ({tool['status']})" if tool.get("status") else "")
             if tool.get("command"):
-                detail += f" · comando: `{_short(tool['command'], 240)}`"
+                detail += f" · command: `{_short(tool['command'], 240)}`"
             if tool.get("files"):
                 detail += " · paths: " + ", ".join(f"`{path}`" for path in tool["files"])
             if tool.get("content_present"):
-                detail += " · contenido de escritura presente"
-            lines.append(f"- Herramienta observada: {detail}")
+                detail += " · write content present"
+            lines.append(f"- Observed tool: {detail}")
         for diff in turn.get("diffs", []):
-            lines.append(f"- Diff observado: `{diff['file']}` ({len(diff.get('patch', ''))} caracteres de patch)")
+            lines.append(f"- Observed diff: `{diff['file']}` ({len(diff.get('patch', ''))} patch characters)")
         if not turn.get("text") and not turn.get("tools") and not turn.get("diffs"):
-            lines.append("- Sin contenido visible en este mensaje.")
+            lines.append("- No visible content in this message.")
         lines.append("")
     for title, values, formatter in (
-        ("Comandos observados", metrics["commands_observed"], lambda value: f"`{_short(value, 400)}`"),
-        ("Paths observados", metrics["files_observed"], lambda value: f"`{value}`"),
-        ("Errores observados", metrics["errors_observed"], lambda value: value),
+        ("Observed commands", metrics["commands_observed"], lambda value: f"`{_short(value, 400)}`"),
+        ("Observed paths", metrics["files_observed"], lambda value: f"`{value}`"),
+        ("Observed errors", metrics["errors_observed"], lambda value: value),
     ):
         if values:
             lines.extend([f"### {title}", "", *[f"- {formatter(value)}" for value in values], ""])
     if metrics["diffs_observed"]:
-        lines.extend(["### Diffs observados", "", *[f"- `{diff['file']}` ({len(diff['patch'])} caracteres)" for diff in metrics["diffs_observed"]], ""])
-    lines.extend(["### Límites", "", *[f"- {warning}" for warning in summary["warnings"]]])
+        lines.extend(["### Observed diffs", "", *[f"- `{diff['file']}` ({len(diff['patch'])} characters)" for diff in metrics["diffs_observed"]], ""])
+    lines.extend(["### Limits", "", *[f"- {warning}" for warning in summary["warnings"]]])
     comparison = summary.get("prompt_comparison")
     if comparison:
-        lines.extend(["", "### Comparación con `## Prompts usados`", ""])
+        lines.extend(["", "### Comparison with `## Prompts used`", ""])
         for pair in comparison["report_prompts"]:
-            lines.append(f"- `{pair['status']}` · similitud {pair['similarity']} · prompt documentado: {_short(pair['report_prompt'], 260)!r}")
+            lines.append(f"- `{pair['status']}` · similarity {pair['similarity']} · documented prompt: {_short(pair['report_prompt'], 260)!r}")
         if comparison["share_prompts_omitted_from_report"]:
-            lines.append(f"- Turnos de usuario no encontrados en el reporte: {comparison['share_prompts_omitted_from_report']}")
+            lines.append(f"- User turns not found in the report: {comparison['share_prompts_omitted_from_report']}")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("sources", nargs="*", help="URL, slug, export JSON o reporte Markdown")
-    parser.add_argument("--input", dest="input_path", help="Alias para un único export JSON local")
-    parser.add_argument("--compare-report", help="Comparar prompts del share con la sección ## Prompts usados de este reporte")
-    parser.add_argument("--json", action="store_true", help="Emitir JSON en vez de Markdown")
-    parser.add_argument("--max-chars", type=int, default=5000, help="Límite por mensaje visible (default: 5000)")
-    parser.add_argument("--timeout", type=float, default=15.0, help="Timeout de cada descarga en segundos")
+    parser.add_argument("sources", nargs="*", help="URL, slug, JSON export, or Markdown report")
+    parser.add_argument("--input", dest="input_path", help="Alias for a single local JSON export")
+    parser.add_argument("--compare-report", help="Compare share prompts with this report's ## Prompts used section")
+    parser.add_argument("--json", action="store_true", help="Output JSON instead of Markdown")
+    parser.add_argument("--max-chars", type=int, default=5000, help="Limit each visible message (default: 5000)")
+    parser.add_argument("--timeout", type=float, default=15.0, help="Timeout for each download, in seconds")
     args = parser.parse_args(argv)
     sources = list(args.sources) + ([args.input_path] if args.input_path else [])
     if not sources:
-        parser.error("indicá un enlace, slug, export JSON o reporte")
+        parser.error("provide a link, slug, JSON export, or report")
     if args.max_chars < 100:
-        parser.error("--max-chars debe ser al menos 100")
+        parser.error("--max-chars must be at least 100")
     report = Path(args.compare_report).read_text(encoding="utf-8") if args.compare_report else None
     summaries: list[dict[str, Any]] = []
     failures: list[dict[str, str]] = []
@@ -661,7 +661,7 @@ def main(argv: list[str] | None = None) -> int:
                     summary["prompt_comparison"] = compare_prompts(summary, report, full_prompts)
                 summaries.append(summary)
             except (TypeError, ValueError, KeyError) as exc:
-                failures.append({"source": slug, "error": f"export inválido: {exc}"})
+                failures.append({"source": slug, "error": f"invalid export: {exc}"})
     if args.json:
         print(json.dumps({"sessions": summaries, "failures": failures}, ensure_ascii=False, indent=2))
     else:
@@ -672,7 +672,7 @@ def main(argv: list[str] | None = None) -> int:
         if failures:
             if summaries:
                 print("\n---\n")
-            print("## Shares no procesados\n")
+            print("## Unprocessed shares\n")
             for failure in failures:
                 print(f"- `{failure['source']}`: {failure['error']}")
     return 0 if summaries and not failures else (2 if failures else 1)
