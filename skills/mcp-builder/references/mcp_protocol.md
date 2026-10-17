@@ -4,12 +4,12 @@ Use the [published specification](https://modelcontextprotocol.io/specification/
 
 ## Protocol model
 
-MCP is a JSON-RPC protocol between a host's client and a server. Initialization negotiates protocol version and capabilities. Servers can expose tools, resources, and prompts; clients should rely only on capabilities that were negotiated. These primitives are different interfaces, not interchangeable labels for an API endpoint.
+MCP is a JSON-RPC protocol between a host's client and a server. In revision `2026-07-28`, there is no `initialize`/`initialized` handshake: every request carries its protocol version and client capabilities in `_meta`. Servers must implement `server/discover` so clients can request advertised server capabilities up front, but clients can proceed without calling it. Earlier revisions, including `2025-11-25`, use the initialization handshake; support it only when required for compatibility. Servers can expose tools, resources, and prompts; these are different interfaces, not interchangeable labels for an API endpoint.
 
 ## Transport
 
 - **stdio**: local client launches a server process. Keep stdout for protocol messages; send logs to stderr.
-- **Streamable HTTP**: client and independently running server communicate over HTTP. Use the current spec's request, response, session, and version-header rules rather than copying old HTTP+SSE examples.
+- **Streamable HTTP**: client and independently running server communicate over HTTP. For `2026-07-28`, requests are stateless at the protocol layer and carry version metadata per request; earlier revisions may use connection-scoped sessions. Follow the selected revision's request, response, and version-header rules rather than copying old HTTP+SSE examples.
 - **HTTP+SSE**: legacy transport from the `2024-11-05` specification. Do not select it for a new implementation unless a target client requires it.
 
 Transport choice is a deployment decision. It does not select the server's authorization model or make a server stateless by itself.
@@ -32,4 +32,4 @@ For Streamable HTTP, validate `Origin` on incoming requests to prevent DNS rebin
 
 ## Compatibility check
 
-Before implementation or upgrade, check the specification revision, client support, and the selected SDK's supported protocol versions. Use the SDK examples for that release line. Do not assume a new schema field or transport behavior is supported by every client.
+Before implementation or upgrade, check the specification revision, client support, and the selected SDK's supported protocol versions. For `2026-07-28`, test per-request metadata and the server's `server/discover` response; for earlier revisions, test the `initialize` handshake and session behavior they require. Use the SDK examples for that release line. Do not assume a new schema field or transport behavior is supported by every client.

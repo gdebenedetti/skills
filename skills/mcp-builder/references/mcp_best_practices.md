@@ -25,4 +25,4 @@ Use the current [specification](https://modelcontextprotocol.io/specification/la
 
 ## Verification
 
-Check initialization and negotiated capabilities, tool/resource/prompt discovery as applicable, valid and invalid input, output-schema conformance, authorization boundaries, tool errors, timeouts, pagination, and transport behavior. Use a real MCP client or Inspector, and validate the upstream OpenAPI contract separately when present. For SDK APIs, use the official docs for the exact pinned version; see [API contract guidance](./api_contracts.md).
+For MCP `2026-07-28`, check per-request metadata and capability handling, the required `server/discover` response, tool/resource/prompt discovery as applicable, valid and invalid input, output-schema conformance, authorization boundaries, tool errors, timeouts, pagination, and transport behavior. Test initialization and session behavior only for earlier revisions that use them. Use a real MCP client or Inspector, and validate the upstream OpenAPI contract separately when present. For SDK APIs, use the official docs for the exact pinned version; see [API contract guidance](./api_contracts.md).
