@@ -1,107 +1,35 @@
-# MCP Protocol Summary
+# MCP protocol notes
 
-Curated summary of the official Model Context Protocol specification for local use inside this skill.
+Use the [published specification](https://modelcontextprotocol.io/specification/latest) as the authority. Record the revision used for implementation and check it again when upgrading an SDK. This summary reflects the specification published as `2026-07-28`; clients and servers may support other revisions.
 
-## Core Model
+## Protocol model
 
-- **Host**: The application that connects models, users, and MCP clients
-- **Client**: The protocol peer created by the host to talk to one MCP server
-- **Server**: The process or service that exposes tools, resources, and prompts
+MCP is a JSON-RPC protocol between a host's client and a server. Initialization negotiates protocol version and capabilities. Servers can expose tools, resources, and prompts; clients should rely only on capabilities that were negotiated. These primitives are different interfaces, not interchangeable labels for an API endpoint.
 
-Think in terms of a narrow protocol boundary:
-- The server exposes capabilities
-- The client negotiates support
-- Requests and notifications flow over JSON-RPC
+## Transport
 
-## Lifecycle
+- **stdio**: local client launches a server process. Keep stdout for protocol messages; send logs to stderr.
+- **Streamable HTTP**: client and independently running server communicate over HTTP. Use the current spec's request, response, session, and version-header rules rather than copying old HTTP+SSE examples.
+- **HTTP+SSE**: legacy transport from the `2024-11-05` specification. Do not select it for a new implementation unless a target client requires it.
 
-1. Initialize the connection and exchange capabilities
-2. Advertise supported features
-3. Serve requests for tools, resources, and prompts
-4. Emit notifications when state changes
+Transport choice is a deployment decision. It does not select the server's authorization model or make a server stateless by itself.
 
-Design implication:
-- Keep initialization cheap
-- Fail fast on unsupported modes
-- Be explicit about optional capabilities
+## Tool contracts
 
-## Server Primitives
+A tool has a stable name, a specific description, an `inputSchema`, and optionally an `outputSchema`. The current specification uses JSON Schema 2020-12 by default. Return structured data matching the declared output schema in `structuredContent` when supported, and concise text content when useful to the caller. Bound large results and expose filters or pagination for collection tools.
 
-### Tools
+Use annotations such as `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` only when they truthfully describe behavior. They are hints and must never replace authorization, validation, or confirmation controls.
 
-Use tools for side-effectful or parameterized operations.
+Protocol-level failures and tool execution failures are different. Return a tool result with `isError` for an execution failure; use JSON-RPC errors for protocol errors. Give callers a useful recovery step without leaking secrets, stack traces, or sensitive upstream details.
 
-Good tool design:
-- Clear action-oriented names
-- Strict input validation
-- Focused outputs
-- Actionable errors
-- Pagination for list/search endpoints
+## Authorization and security
 
-### Resources
+Authorization is optional at the protocol level; add it when the service or deployment requires protected access. For protected remote servers, follow the MCP authorization specification and its OAuth 2.1 profile, including Protected Resource Metadata, authorization-server discovery, audience-bound token validation, HTTPS, and PKCE where applicable. Do not invent a generic bearer-token flow in place of that profile.
 
-Use resources for read-oriented content that can be referenced or loaded by the client.
+The server must authorize every operation against the authenticated principal and requested resource. Never forward the MCP client's access token to an upstream API; obtain and use a separate upstream credential. Keep secrets out of source, tool descriptions, and returned errors.
 
-Good resource design:
-- Stable identifiers
-- Predictable schemas
-- Clear separation from write operations
+For Streamable HTTP, validate `Origin` on incoming requests to prevent DNS rebinding. If serving a local process, bind to loopback unless a deliberate network deployment requires otherwise. Validate inputs, constrain resource access, and avoid unsafe URL fetching, path traversal, shell interpolation, and unbounded requests.
 
-### Prompts
+## Compatibility check
 
-Use prompts for reusable task scaffolding or guided interaction patterns.
-
-Good prompt design:
-- Narrow purpose
-- Explicit inputs
-- No hidden assumptions about external state
-
-## Transport Choice
-
-### `stdio`
-
-Prefer for:
-- Local developer tools
-- Single-user local integrations
-- Simple process spawning
-
-Benefits:
-- Minimal deployment overhead
-- Straightforward local debugging
-
-### `streamable-http`
-
-Prefer for:
-- Remote services
-- Multi-user access
-- Horizontal scaling
-- Stateless deployments
-
-Benefits:
-- Familiar HTTP infrastructure
-- Easier hosting and routing
-- Better fit for managed platforms
-
-## Capability and Context Boundaries
-
-Design the server so agents can discover only what they need:
-- Keep tool descriptions concise
-- Avoid giant response payloads
-- Return structured data when possible
-- Make filtering and pagination first-class
-
-## Safety Expectations
-
-- Validate inputs strictly
-- Surface auth and rate-limit failures clearly
-- Avoid ambiguous destructive behavior
-- Distinguish read-only from mutating tools
-- Preserve least surprise in naming and behavior
-
-## Implementation Checklist
-
-- Pick the transport before writing handlers
-- Define the server name and version early
-- Group tools by service domain
-- Add schemas before writing business logic
-- Test discovery, invocation, and failure modes
+Before implementation or upgrade, check the specification revision, client support, and the selected SDK's supported protocol versions. Use the SDK examples for that release line. Do not assume a new schema field or transport behavior is supported by every client.
