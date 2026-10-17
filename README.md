@@ -1,6 +1,6 @@
 # Agent Skills
 
-Generic catalog of reusable Agent Skills.
+A public catalog of reusable Agent Skills.
 
 ## What Is Here
 
@@ -8,14 +8,13 @@ Each skill lives in `skills/<skill-name>/` and is centered on `SKILL.md`.
 
 `SKILL.md` is the portable contract. Files under `agents/` are optional adapters for specific runtimes.
 
-Current skills:
+Current public skills:
 
 - `commit-practices`
-- `openai-docs`
 - `mcp-builder`
-- `prepare-plan-implementation`
+- `openai-docs`
 - `opencode-share-reader`
-- `sync-main-after-merge`
+- `prepare-plan-implementation`
 - `virtualenv-first`
 
 ## Layout
@@ -47,15 +46,14 @@ Install one specific skill:
 
 ```bash
 npx skills add gdebenedetti/skills --skill commit-practices
-npx skills add gdebenedetti/skills --skill openai-docs
 npx skills add gdebenedetti/skills --skill mcp-builder
-npx skills add gdebenedetti/skills --skill prepare-plan-implementation
+npx skills add gdebenedetti/skills --skill openai-docs
 npx skills add gdebenedetti/skills --skill opencode-share-reader
-npx skills add gdebenedetti/skills --skill sync-main-after-merge
+npx skills add gdebenedetti/skills --skill prepare-plan-implementation
 npx skills add gdebenedetti/skills --skill virtualenv-first
 ```
 
-Install the whole catalog:
+Install the whole public catalog:
 
 ```bash
 npx skills add gdebenedetti/skills --skill '*' --yes
@@ -66,8 +64,11 @@ If you already cloned the repository locally, the same commands also work with t
 ```bash
 npx skills add . --list
 npx skills add . --skill commit-practices
+npx skills add . --skill mcp-builder
 npx skills add . --skill openai-docs
-npx skills add . --skill sync-main-after-merge
+npx skills add . --skill opencode-share-reader
+npx skills add . --skill prepare-plan-implementation
+npx skills add . --skill virtualenv-first
 ```
 
 ## Contributing
