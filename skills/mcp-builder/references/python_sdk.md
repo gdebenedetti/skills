@@ -1,70 +1,7 @@
-# Python SDK Summary
+# Python SDK notes
 
-Curated summary of the official MCP Python SDK guidance for local use inside this skill.
+Use the [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) repository, documentation, and examples as the API authority. Pin the SDK release and check its supported MCP revisions, Python version, transport options, and schema/output behavior before implementation; this upstream SDK changes frequently.
 
-## When to Choose Python
+FastMCP provides a high-level Python server interface. Use the API documented for the pinned release rather than assuming decorator, annotation, or return-value details from an older version. Define explicit parameter constraints and stable output shapes, and check whether the SDK can emit an MCP `outputSchema` and matching structured content for that release.
 
-Choose Python when:
-- the target service already has strong Python SDK support
-- the user wants FastMCP ergonomics
-- existing automation or data tooling is already Python-based
-
-## Recommended Stack
-
-- Python 3.10+
-- FastMCP-style server patterns
-- Pydantic models or type hints for input and output structure
-- `stdio` for local servers
-- HTTP transport only when the deployment model requires it
-
-## Core Patterns
-
-Design the server around:
-- a single server entrypoint
-- shared service clients
-- typed request/response models
-- narrow tool handlers
-
-Keep business logic separate from transport wiring.
-
-## Tool Design
-
-For each tool:
-- define explicit parameter models
-- validate constraints at the boundary
-- keep return shapes predictable
-- separate read-only and mutating actions
-- expose pagination and filters instead of dumping large payloads
-
-## Project Shape
-
-Recommended layout:
-
-```text
-service_mcp_server/
-├── pyproject.toml
-├── README.md
-├── server.py
-├── tools/
-├── services/
-└── models/
-```
-
-Keep:
-- server construction in the entrypoint
-- auth and HTTP clients in `services/`
-- models and schemas in `models/`
-
-## Runtime Guidance
-
-- Use typed models for stable interfaces
-- Return machine-friendly structures when possible
-- Handle auth, rate limits, and missing resources explicitly
-- Keep tool descriptions short and concrete
-
-## Decision Rule
-
-If Python is chosen:
-- prefer simple FastMCP patterns first
-- keep handlers thin
-- make data contracts explicit before expanding tool count
+Choose the language based on the service client and project constraints. Choose transport independently: `stdio` for a local subprocess or Streamable HTTP for a remote server, subject to client support and the current MCP specification.

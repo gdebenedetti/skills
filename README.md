@@ -11,6 +11,7 @@ Each skill lives in `skills/<skill-name>/` and is centered on `SKILL.md`.
 Current skills:
 
 - `commit-practices`
+- `openai-docs`
 - `mcp-builder`
 - `prepare-plan-implementation`
 - `opencode-share-reader`
@@ -46,6 +47,7 @@ Install one specific skill:
 
 ```bash
 npx skills add gdebenedetti/skills --skill commit-practices
+npx skills add gdebenedetti/skills --skill openai-docs
 npx skills add gdebenedetti/skills --skill mcp-builder
 npx skills add gdebenedetti/skills --skill prepare-plan-implementation
 npx skills add gdebenedetti/skills --skill opencode-share-reader
@@ -64,6 +66,7 @@ If you already cloned the repository locally, the same commands also work with t
 ```bash
 npx skills add . --list
 npx skills add . --skill commit-practices
+npx skills add . --skill openai-docs
 npx skills add . --skill sync-main-after-merge
 ```
 
