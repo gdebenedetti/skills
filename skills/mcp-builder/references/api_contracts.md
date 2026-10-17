@@ -1,6 +1,6 @@
 # Source and contract guidance
 
-These sources describe different layers. Do not treat them as competing MCP specifications.
+These sources describe different layers. Do not treat an upstream HTTP API contract as an MCP protocol specification.
 
 ## Source order
 
@@ -13,8 +13,7 @@ These sources describe different layers. Do not treat them as competing MCP spec
 
 - **MCP** describes the JSON-RPC interaction between an MCP client and server: discovery, tools, resources, prompts, transports, and optional authorization.
 - **OpenAPI** describes an HTTP service's API contract. It can inform MCP tool names, inputs, outputs, auth requirements, and error mapping. Translating an OpenAPI operation into a tool is an adapter decision; the MCP tool contract still needs to be designed and validated.
-- **Open Context Protocol (OCP)** refers here to [yvgude/open-context-protocol](https://github.com/yvgude/open-context-protocol), a distinct proposal for representing, governing, and evidencing model context. Its repository labels the release `v0.1-draft — pre-review` and says not to build production dependencies on it. Treat it as an experimental proposal; do not describe it as an adopted or normative MCP standard. If a user means a different OCP, identify that source before making claims.
-- **Context7** serves documentation for a chosen library/version. Its tools do not define MCP, OpenAPI, or OCP semantics.
+- **Context7** serves documentation for a chosen library/version. It does not define MCP or OpenAPI semantics.
 
 ## OpenAPI to MCP mapping
 
