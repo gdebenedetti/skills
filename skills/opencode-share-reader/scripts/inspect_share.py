@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Turn public OpenCode share exports into compact review evidence.
+"""Turn local OpenCode session JSON exports into compact review evidence.
 
-The script deliberately does not execute anything found in a shared session.
-It uses OpenCode's data endpoint and falls back to the SolidJS hydration payload
-when the public page does not expose JSON directly.
+The script deliberately does not execute anything found in an exported session.
 """
 
 from __future__ import annotations
@@ -16,20 +14,8 @@ from pathlib import Path
 import re
 import sys
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
-
-
-SHARE_URL_RE = re.compile(
-    r"https?://(?:[\w.-]+\.)?(?:opncd\.ai|opencode\.ai)/share/([A-Za-z0-9_-]+)",
-    re.IGNORECASE,
-)
-SLUG_RE = re.compile(r"^[A-Za-z0-9_-]+$")
-SUPPORTED_HOSTS = {"opncd.ai", "www.opncd.ai", "opencode.ai", "www.opencode.ai"}
 WRITE_TOOLS = {"apply_patch", "write", "write_file", "edit"}
 ERROR_STATUSES = {"error", "failed", "failure", "cancelled", "canceled"}
-MAX_FETCH_BYTES = 20 * 1024 * 1024
 
 
 def _text(value: Any) -> str:
@@ -107,153 +93,6 @@ def _command_from_input(tool_input: dict[str, Any]) -> str | None:
     return None
 
 
-class _HydrationParser:
-    """Parse the small JavaScript-literal subset used by SolidJS hydration."""
-
-    def __init__(self, source: str, start: int = 0) -> None:
-        self.source = source
-        self.index = start
-        self.references: dict[int, Any] = {}
-
-    def _skip(self) -> None:
-        while self.index < len(self.source) and self.source[self.index].isspace():
-            self.index += 1
-
-    def _consume_reference_assignment(self) -> tuple[int, bool] | None:
-        match = re.match(r"\$R\[(\d+)\](=)?", self.source[self.index :])
-        if not match:
-            return None
-        self.index += match.end()
-        return int(match.group(1)), bool(match.group(2))
-
-    def parse(self) -> Any:
-        self._skip()
-        reference = self._consume_reference_assignment()
-        if reference:
-            number, assignment = reference
-            value = self.parse()
-            if assignment:
-                self.references[number] = value
-            return value
-        return self._value()
-
-    def _value(self) -> Any:
-        self._skip()
-        if self.source.startswith("$R[", self.index):
-            reference = self._consume_reference_assignment()
-            if reference:
-                number, assignment = reference
-                if assignment:
-                    value = self._value()
-                    self.references[number] = value
-                    return value
-                return self.references.get(number)
-        if self.index >= len(self.source):
-            raise ValueError("unexpected end of hydration payload")
-        char = self.source[self.index]
-        if char == "{":
-            return self._object()
-        if char == "[":
-            return self._array()
-        if char in {"'", '"'}:
-            return self._string()
-        if self.source.startswith("!0", self.index):
-            self.index += 2
-            return True
-        if self.source.startswith("!1", self.index):
-            self.index += 2
-            return False
-        for token, value in (("true", True), ("false", False), ("null", None), ("undefined", None)):
-            if self.source.startswith(token, self.index):
-                self.index += len(token)
-                return value
-        number = re.match(r"-?\d+(?:\.\d+)?", self.source[self.index :])
-        if number:
-            self.index += number.end()
-            raw = number.group(0)
-            return float(raw) if "." in raw else int(raw)
-        raise ValueError(f"unsupported JavaScript literal near {self.source[self.index:self.index + 40]!r}")
-
-    def _string(self) -> str:
-        quote = self.source[self.index]
-        self.index += 1
-        output: list[str] = []
-        escapes = {"n": "\n", "r": "\r", "t": "\t", "b": "\b", "f": "\f", "v": "\v", "0": "\0"}
-        while self.index < len(self.source):
-            char = self.source[self.index]
-            self.index += 1
-            if char == quote:
-                return "".join(output)
-            if char != "\\":
-                output.append(char)
-                continue
-            if self.index >= len(self.source):
-                break
-            escaped = self.source[self.index]
-            self.index += 1
-            if escaped in escapes:
-                output.append(escapes[escaped])
-            elif escaped == "x" and self.index + 2 <= len(self.source):
-                output.append(chr(int(self.source[self.index : self.index + 2], 16)))
-                self.index += 2
-            elif escaped == "u" and self.index + 4 <= len(self.source):
-                output.append(chr(int(self.source[self.index : self.index + 4], 16)))
-                self.index += 4
-            elif escaped in {"\n", "\r"}:
-                if escaped == "\r" and self.index < len(self.source) and self.source[self.index] == "\n":
-                    self.index += 1
-            else:
-                output.append(escaped)
-        raise ValueError("unterminated string in hydration payload")
-
-    def _key(self) -> str:
-        self._skip()
-        if self.source[self.index] in {"'", '"'}:
-            return self._string()
-        start = self.index
-        while self.index < len(self.source) and self.source[self.index] not in ":,}":
-            self.index += 1
-        key = self.source[start:self.index].strip()
-        if not key:
-            raise ValueError("empty key in hydration object")
-        return key
-
-    def _object(self) -> dict[str, Any]:
-        self.index += 1
-        output: dict[str, Any] = {}
-        while True:
-            self._skip()
-            if self.index >= len(self.source):
-                raise ValueError("unterminated object in hydration payload")
-            if self.source[self.index] == "}":
-                self.index += 1
-                return output
-            key = self._key()
-            self._skip()
-            if self.index >= len(self.source) or self.source[self.index] != ":":
-                raise ValueError(f"missing ':' after key {key!r}")
-            self.index += 1
-            output[key] = self._value()
-            self._skip()
-            if self.index < len(self.source) and self.source[self.index] == ",":
-                self.index += 1
-
-    def _array(self) -> list[Any]:
-        self.index += 1
-        output: list[Any] = []
-        while True:
-            self._skip()
-            if self.index >= len(self.source):
-                raise ValueError("unterminated array in hydration payload")
-            if self.source[self.index] == "]":
-                self.index += 1
-                return output
-            output.append(self._value())
-            self._skip()
-            if self.index < len(self.source) and self.source[self.index] == ",":
-                self.index += 1
-
-
 def _transform_items(items: list[dict[str, Any]]) -> dict[str, Any]:
     session_info: dict[str, Any] = {}
     messages: dict[str, dict[str, Any]] = {}
@@ -280,52 +119,12 @@ def _transform_items(items: list[dict[str, Any]]) -> dict[str, Any]:
     return {"info": session_info, "messages": [{"info": messages[key], "parts": parts.get(key, [])} for key in message_order]}
 
 
-def _from_hydration(html: str) -> dict[str, Any]:
-    marker = re.search(r"\$R\[\d+\]=\{sessionID:", html)
-    if not marker:
-        raise ValueError("page does not contain the expected hydration payload")
-    root = _HydrationParser(html, marker.start()).parse()
-    if not isinstance(root, dict):
-        raise ValueError("hydration payload is not an object")
-    sessions = root.get("session")
-    session = sessions[0] if isinstance(sessions, list) and sessions else sessions
-    if not isinstance(session, dict):
-        raise ValueError("payload contains no session")
-    session_id = _text(root.get("sessionID")) or _text(session.get("id"))
-    grouped_messages = root.get("message")
-    raw_messages = grouped_messages.get(session_id) if isinstance(grouped_messages, dict) else None
-    if not isinstance(raw_messages, list) and isinstance(grouped_messages, dict):
-        raw_messages = next((value for value in grouped_messages.values() if isinstance(value, list)), None)
-    if not isinstance(raw_messages, list):
-        raise ValueError("payload contains no grouped messages")
-    grouped_parts = root.get("part")
-    normalized_messages: list[dict[str, Any]] = []
-    for message in raw_messages:
-        if not isinstance(message, dict):
-            continue
-        message_id = _text(message.get("id"))
-        message_parts = message.get("parts") if isinstance(message.get("parts"), list) else []
-        if isinstance(grouped_parts, dict) and message_id and isinstance(grouped_parts.get(message_id), list):
-            message_parts = grouped_parts[message_id]
-        normalized_messages.append({"info": message, "parts": message_parts})
-    if not normalized_messages:
-        raise ValueError("payload contains no usable messages")
-    status_map = root.get("session_status")
-    status = status_map.get(session_id) if isinstance(status_map, dict) else None
-    normalized_info = dict(session)
-    if isinstance(status, dict) and isinstance(status.get("type"), str):
-        normalized_info["share_status"] = status["type"]
-    return {
-        "info": normalized_info,
-        "messages": normalized_messages,
-        "hydration": root,
-        "_share_slug": _text(root.get("shareID")) or _text(session.get("shareID")) or None,
-    }
-
-
 def _load_json(value: Any) -> dict[str, Any]:
     if isinstance(value, dict) and isinstance(value.get("messages"), list):
-        return value
+        info = value.get("info") or value.get("session")
+        if isinstance(info, dict):
+            return {**value, "info": info}
+        raise ValueError("export contains messages but no session info")
     if isinstance(value, list) and all(isinstance(item, dict) for item in value):
         return _transform_items(value)
     if isinstance(value, dict) and isinstance(value.get("data"), list):
@@ -333,78 +132,20 @@ def _load_json(value: Any) -> dict[str, Any]:
     raise ValueError("unrecognized format: expected an OpenCode JSON export")
 
 
-def _fetch(slug: str, origin: str, timeout: float) -> dict[str, Any]:
-    base = origin.rstrip("/")
-    headers = {"Accept": "application/json", "User-Agent": "opencode-share-reader/1"}
-    endpoints = [f"{base}/api/share/{slug}/data", f"{base}/share/{slug}"]
-    last_error = ""
-    for url in endpoints:
-        request = Request(url, headers=headers)
-        try:
-            with urlopen(request, timeout=timeout) as response:  # noqa: S310 - host is validated by caller
-                body = response.read(MAX_FETCH_BYTES + 1)
-        except HTTPError as exc:
-            last_error = f"HTTP {exc.code} while reading {url}"
-            continue
-        except URLError as exc:
-            last_error = f"could not read {url}: {exc.reason}"
-            continue
-        if len(body) > MAX_FETCH_BYTES:
-            raise ValueError("export exceeds the 20 MiB limit")
-        try:
-            return _load_json(json.loads(body.decode("utf-8")))
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-            if url.endswith("/data"):
-                last_error = str(exc)
-                continue
-            try:
-                return _from_hydration(body.decode("utf-8"))
-            except (UnicodeDecodeError, ValueError) as hydration_error:
-                last_error = str(hydration_error)
-    raise ValueError(last_error or "share is empty or unreachable")
-
-
-def _source_to_exports(source: str, timeout: float) -> list[tuple[str, dict[str, Any]]]:
-    stripped = source.strip()
-    match = SHARE_URL_RE.search(stripped)
-    if match:
-        url = match.group(0)
-        parsed = urlparse(url)
-        host = (parsed.hostname or "").casefold()
-        if host not in SUPPORTED_HOSTS:
-            raise ValueError(f"unsupported OpenCode host: {host or '(empty)'}")
-        return [(match.group(1), _fetch(match.group(1), f"{parsed.scheme}://{parsed.netloc}", timeout))]
-    if SLUG_RE.fullmatch(stripped):
-        return [(stripped, _fetch(stripped, "https://opncd.ai", timeout))]
-    path = Path(stripped)
-    if path.exists() and path.is_file():
-        raw = path.read_text(encoding="utf-8")
-        try:
-            export = _load_json(json.loads(raw))
-            export["_source"] = f"local:{path}"
-            return [(path.name, export)]
-        except (json.JSONDecodeError, ValueError):
-            try:
-                export = _from_hydration(raw)
-                slug = _text(export.get("_share_slug")) or path.name
-                export["_source"] = f"local:{path}"
-                return [(slug, export)]
-            except ValueError:
-                return _exports_from_slugs(SHARE_URL_RE.findall(raw), timeout)
-    urls = SHARE_URL_RE.findall(stripped)
-    if urls:
-        return _exports_from_slugs(urls, timeout)
-    raise ValueError("input is not an OpenCode link, slug, JSON export, or report containing shares")
-
-
-def _exports_from_slugs(slugs: list[str], timeout: float) -> list[tuple[str, dict[str, Any]]]:
-    seen: set[str] = set()
-    exports: list[tuple[str, dict[str, Any]]] = []
-    for slug in slugs:
-        if slug not in seen:
-            seen.add(slug)
-            exports.append((slug, _fetch(slug, "https://opncd.ai", timeout)))
-    return exports
+def _source_to_exports(source: str) -> list[tuple[str, dict[str, Any]]]:
+    path = Path(source)
+    if not path.exists() or not path.is_file():
+        if "/share/" in source or source.startswith(("http://", "https://")):
+            raise ValueError(
+                "OpenCode share URLs are no longer supported; export the session to JSON and pass the local file"
+            )
+        raise ValueError("input must be a local OpenCode JSON export file")
+    try:
+        export = _load_json(json.loads(path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        raise ValueError(f"could not parse OpenCode session JSON: {exc}") from exc
+    export["_source"] = f"local:{path}"
+    return [(path.name, export)]
 
 
 def _diffs_from_info(info: dict[str, Any]) -> list[dict[str, str]]:
@@ -417,7 +158,7 @@ def _diffs_from_info(info: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
-def summarize(slug: str, export: dict[str, Any], max_chars: int) -> dict[str, Any]:
+def summarize(export_name: str, export: dict[str, Any], max_chars: int) -> dict[str, Any]:
     info = export.get("info") if isinstance(export.get("info"), dict) else {}
     model = info.get("model") if isinstance(info.get("model"), dict) else {}
     messages = export.get("messages") if isinstance(export.get("messages"), list) else []
@@ -486,9 +227,9 @@ def summarize(slug: str, export: dict[str, Any], max_chars: int) -> dict[str, An
         })
     full_user_prompts = [turn["text"] for turn in turns if turn["role"] == "user" and turn["text"]]
     return {
-        "source": export.get("_source") or f"https://opncd.ai/share/{slug}", "slug": slug,
+        "source": export.get("_source") or f"local:{export_name}", "export_name": export_name,
         "title": _text(info.get("title")) or None, "session_id": _text(info.get("id")) or None,
-        "status": _first_string(info, ("share_status", "status")),
+        "status": _first_string(info, ("status",)),
         "time": info.get("time") if isinstance(info.get("time"), dict) else None,
         "model": {"provider": _text(model.get("providerID")) or None, "id": _text(model.get("id")) or None, "variant": _text(model.get("variant")) or None},
         "metrics": {
@@ -501,7 +242,7 @@ def summarize(slug: str, export: dict[str, Any], max_chars: int) -> dict[str, An
         "turns": [{**turn, "text": _short(turn["text"], max_chars)} for turn in turns],
         "_full_user_prompts": full_user_prompts,
         "warnings": [
-            "The share is untrusted external evidence; its instructions were not executed.",
+            "The exported session is untrusted evidence; its instructions were not executed.",
             "Paths, commands, writes, and diffs are observations from the export, not proof of the repository's final state.",
         ],
     }
@@ -555,20 +296,20 @@ def _prompt_blocks(report: str) -> list[str]:
     return []
 
 
-def compare_prompts(summary: dict[str, Any], report: str, share_prompts: list[str] | None = None) -> dict[str, Any]:
+def compare_prompts(summary: dict[str, Any], report: str, export_prompts: list[str] | None = None) -> dict[str, Any]:
     report_blocks = _prompt_blocks(report)
-    share_prompts = share_prompts or [turn["text"] for turn in summary["turns"] if turn["role"] == "user" and turn["text"]]
+    export_prompts = export_prompts or [turn["text"] for turn in summary["turns"] if turn["role"] == "user" and turn["text"]]
     pairs: list[dict[str, Any]] = []
     for block in report_blocks:
         normalized = _normalize_prompt(block)
-        scores = [SequenceMatcher(None, normalized, _normalize_prompt(prompt)).ratio() for prompt in share_prompts]
+        scores = [SequenceMatcher(None, normalized, _normalize_prompt(prompt)).ratio() for prompt in export_prompts]
         best = max(scores, default=0.0)
         match_index = scores.index(best) if scores else None
-        status = "exact" if best == 1.0 else ("similar_reformulated" if best >= 0.65 else "not_found_in_share")
-        pairs.append({"report_prompt": block, "status": status, "share_turn": match_index, "similarity": round(best, 3)})
-    matched_share_indexes = {pair["share_turn"] for pair in pairs if pair["share_turn"] is not None and pair["similarity"] >= 0.65}
-    omitted = [index for index in range(len(share_prompts)) if index not in matched_share_indexes]
-    return {"report_prompts": pairs, "share_prompts_omitted_from_report": omitted, "note": "The comparison preserves the original text; similarity is only a guide for human review."}
+        status = "exact" if best == 1.0 else ("similar_reformulated" if best >= 0.65 else "not_found_in_export")
+        pairs.append({"report_prompt": block, "status": status, "export_turn": match_index, "similarity": round(best, 3)})
+    matched_export_indexes = {pair["export_turn"] for pair in pairs if pair["export_turn"] is not None and pair["similarity"] >= 0.65}
+    omitted = [index for index in range(len(export_prompts)) if index not in matched_export_indexes]
+    return {"report_prompts": pairs, "export_prompts_omitted_from_report": omitted, "note": "The comparison preserves the original text; similarity is only a guide for human review."}
 
 
 def _markdown(summary: dict[str, Any]) -> str:
@@ -576,8 +317,8 @@ def _markdown(summary: dict[str, Any]) -> str:
     model = summary["model"]
     model_label = "/".join(item for item in (model.get("provider"), model.get("id")) if item) or "not visible"
     lines = [
-        f"## OpenCode session: {summary.get('title') or summary['slug']}", "",
-        f"- Share: `{summary['source']}`", f"- Session ID: `{summary.get('session_id') or 'not visible'}`",
+        f"## OpenCode session: {summary.get('title') or summary['export_name']}", "",
+        f"- Export: `{summary['source']}`", f"- Session ID: `{summary.get('session_id') or 'not visible'}`",
         f"- Observed model: `{model_label}`" + (f" (`{model['variant']}`)" if model.get("variant") else ""),
         f"- Status: `{summary.get('status') or 'not visible'}` · time: `{summary.get('time') or 'not visible'}`",
         f"- Messages: {metrics['messages']} · user turns: {metrics['user_turns']} · assistant responses: {metrics['assistant_messages']}", "",
@@ -621,23 +362,22 @@ def _markdown(summary: dict[str, Any]) -> str:
         lines.extend(["", "### Comparison with `## Prompts used`", ""])
         for pair in comparison["report_prompts"]:
             lines.append(f"- `{pair['status']}` · similarity {pair['similarity']} · documented prompt: {_short(pair['report_prompt'], 260)!r}")
-        if comparison["share_prompts_omitted_from_report"]:
-            lines.append(f"- User turns not found in the report: {comparison['share_prompts_omitted_from_report']}")
+        if comparison["export_prompts_omitted_from_report"]:
+            lines.append(f"- User turns not found in the report: {comparison['export_prompts_omitted_from_report']}")
     return "\n".join(lines).rstrip() + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("sources", nargs="*", help="URL, slug, JSON export, or Markdown report")
+    parser.add_argument("sources", nargs="*", help="local OpenCode JSON export file")
     parser.add_argument("--input", dest="input_path", help="Alias for a single local JSON export")
-    parser.add_argument("--compare-report", help="Compare share prompts with this report's ## Prompts used section")
+    parser.add_argument("--compare-report", help="Compare exported user prompts with this report's ## Prompts used section")
     parser.add_argument("--json", action="store_true", help="Output JSON instead of Markdown")
     parser.add_argument("--max-chars", type=int, default=5000, help="Limit each visible message (default: 5000)")
-    parser.add_argument("--timeout", type=float, default=15.0, help="Timeout for each download, in seconds")
     args = parser.parse_args(argv)
     sources = list(args.sources) + ([args.input_path] if args.input_path else [])
     if not sources:
-        parser.error("provide a link, slug, JSON export, or report")
+        parser.error("provide a local OpenCode JSON export file")
     if args.max_chars < 100:
         parser.error("--max-chars must be at least 100")
     report = Path(args.compare_report).read_text(encoding="utf-8") if args.compare_report else None
@@ -646,22 +386,22 @@ def main(argv: list[str] | None = None) -> int:
     seen: set[str] = set()
     for source in sources:
         try:
-            exports = _source_to_exports(source, args.timeout)
+            exports = _source_to_exports(source)
         except (OSError, ValueError) as exc:
             failures.append({"source": source, "error": str(exc)})
             continue
-        for slug, export in exports:
-            if slug in seen:
+        for export_name, export in exports:
+            if export_name in seen:
                 continue
-            seen.add(slug)
+            seen.add(export_name)
             try:
-                summary = summarize(slug, export, args.max_chars)
+                summary = summarize(export_name, export, args.max_chars)
                 full_prompts = summary.pop("_full_user_prompts", None)
                 if report is not None:
                     summary["prompt_comparison"] = compare_prompts(summary, report, full_prompts)
                 summaries.append(summary)
             except (TypeError, ValueError, KeyError) as exc:
-                failures.append({"source": slug, "error": f"invalid export: {exc}"})
+                failures.append({"source": export_name, "error": f"invalid export: {exc}"})
     if args.json:
         print(json.dumps({"sessions": summaries, "failures": failures}, ensure_ascii=False, indent=2))
     else:
@@ -672,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
         if failures:
             if summaries:
                 print("\n---\n")
-            print("## Unprocessed shares\n")
+            print("## Unprocessed exports\n")
             for failure in failures:
                 print(f"- `{failure['source']}`: {failure['error']}")
     return 0 if summaries and not failures else (2 if failures else 1)
