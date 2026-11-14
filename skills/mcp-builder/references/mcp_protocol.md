@@ -10,6 +10,7 @@ MCP is a JSON-RPC protocol between a host's client and a server. In revision `20
 
 - **stdio**: local client launches a server process. Keep stdout for protocol messages; send logs to stderr.
 - **Streamable HTTP**: client and independently running server communicate over HTTP. For `2026-07-28`, requests are stateless at the protocol layer and carry version metadata per request; earlier revisions may use connection-scoped sessions. Follow the selected revision's request, response, and version-header rules rather than copying old HTTP+SSE examples.
+- For both `2025-11-25` and `2026-07-28`, an accepted Streamable HTTP notification POST returns `202 Accepted` with an empty body. Do not try to parse it as a JSON-RPC response. Check the exact selected revision for other transport details; the two revisions differ in sessions, metadata, and lifecycle behavior.
 - **HTTP+SSE**: legacy transport from the `2024-11-05` specification. Do not select it for a new implementation unless a target client requires it.
 
 Transport choice is a deployment decision. It does not select the server's authorization model or make a server stateless by itself.
