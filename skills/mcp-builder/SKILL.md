@@ -25,3 +25,7 @@ Use this skill when implementing or reviewing an MCP server. MCP means Model Con
 - [Environment and transport verification](./references/environment_and_transport_verification.md): Compose preflight, data-path checks, and layered HTTP testing.
 - [TypeScript SDK notes](./references/typescript_sdk.md) and [Python SDK notes](./references/python_sdk.md): use with the linked upstream documentation; verify version-specific APIs before copying examples.
 - [TypeScript implementation notes](./references/node_mcp_server.md) and [Python implementation notes](./references/python_mcp_server.md): examples and patterns.
+
+## Provenance
+
+Adapted from [anthropics/skills](https://github.com/anthropics/skills) (`skills/mcp-builder`), Apache 2.0. See [`LICENSE.txt`](./LICENSE.txt). Local additions in this catalog: protocol guidance aligned with the 2026 MCP revision, environment and transport verification (Compose preflight and layered HTTP tests), and offline-first references.
