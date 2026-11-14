@@ -41,3 +41,11 @@ Review the skill against that guidance and confirm all of the following:
 - Keep each PR scoped to one coherent change.
 - Include validation results in the PR description.
 - Do not merge a skill change without explicit human confirmation that the `skill-creator` checklist was reviewed.
+
+## Authorship and licenses
+
+- The default repository license is MIT; see [LICENSE](./LICENSE).
+- `mcp-builder` and `openai-docs` keep their upstream Apache 2.0 `LICENSE.txt`. When adapting or packaging a third-party skill, keep that license file, add a short provenance note at the end of `SKILL.md` (source, license, and what changed locally), and do not rewrite the upstream body as if it were original.
+- Automated validation requires PyYAML (`pip install pyyaml`, or a virtualenv). Then run `python scripts/validate_skills.py`.
+- The public catalog is written in English.
+

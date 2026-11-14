@@ -10,3 +10,4 @@
 - Expose local skills with symlinks instead of copies.
 - Run `python scripts/validate_skills.py` after edits.
 - Review every new or changed skill against Anthropic `skill-creator`, not only `quick_validate.py`.
+- Keep upstream authorship and licenses visible. Do not present adapted or packaged skills as original.
